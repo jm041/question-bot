@@ -67,7 +67,7 @@ const questions = [
 client.once('ready', () => {
   console.log('봇 실행됨');
 
-  cron.schedule('0 22 * * *', () => {
+  cron.schedule('* * * * *', () => {
     const channel = client.channels.cache.get("1473382815897747507");
     const random = questions[Math.floor(Math.random() * questions.length)];
     channel.send(`🌙 오늘의 질문\n\n${random}`);
@@ -79,6 +79,7 @@ client.login(process.env.TOKEN);
 const http = require('http');
 
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
