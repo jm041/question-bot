@@ -115,26 +115,32 @@ function getNextQuestion() {
 client.once('ready', () => {
   console.log('봇 실행됨');
 
-  // 크론 질문 (매일 22시)
-  cron.schedule('0 22 * * *', async () => {
-  // 서울시간
-}, { timezone: 'Asia/Seoul' });
+  client.once('ready', () => {
+  console.log('봇 실행됨');
 
-    const channel = client.channels.cache.get("1473382815897747507");
-    if (!channel) return;
-    const question = getNextQuestion();
-    const embed = new EmbedBuilder()
-      .setColor(0xFF69B4)
-      .setAuthor({
-        name: `${channel.guild.name} 오늘의 질문 🌙`,
-        iconURL: channel.guild.iconURL({ dynamic: true })
-      })
-      .setDescription(`💌 ${question}`)
-      .setFooter({ text: "매일 밤 우리만의 질문 💫" })
-      .setTimestamp();
+  // 크론 질문 (매일 22시, 서울시간)
+  cron.schedule(
+    '0 22 * * *',
+    async () => {
+      const channelId = "1473382815897747507";
+      const channel = await client.channels.fetch(channelId).catch(() => null);
+      if (!channel) return;
 
-    channel.send({ embeds: [embed] });
-  });
+      const question = getNextQuestion();
+      const embed = new EmbedBuilder()
+        .setColor(0xFF69B4)
+        .setAuthor({
+          name: `${channel.guild.name} 오늘의 질문 🌙`,
+          iconURL: channel.guild.iconURL({ dynamic: true })
+        })
+        .setDescription(`💌 ${question}`)
+        .setFooter({ text: "매일 밤 우리만의 질문 💫" })
+        .setTimestamp();
+
+      channel.send({ embeds: [embed] });
+    },
+    { timezone: 'Asia/Seoul' }
+  );
 });
 
 // 명령어로 즉시 질문
@@ -160,6 +166,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
