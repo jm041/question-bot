@@ -2,7 +2,7 @@ const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const cron = require('node-cron');
 
 const client = new Client({
-    intents: [
+  intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
@@ -90,30 +90,26 @@ function getNextQuestion() {
 client.once('ready', () => {
   console.log('봇 실행됨');
 
-const { EmbedBuilder } = require('discord.js');
+  // 크론 질문 (매일 22시)
+  cron.schedule('0 22 * * *', () => {
+    const channel = client.channels.cache.get("1473382815897747507");
+    if (!channel) return;
+    const question = getNextQuestion();
+    const embed = new EmbedBuilder()
+      .setColor(0xFF69B4)
+      .setAuthor({
+        name: `${channel.guild.name} 오늘의 질문 🌙`,
+        iconURL: channel.guild.iconURL({ dynamic: true })
+      })
+      .setDescription(`💌 ${question}`)
+      .setFooter({ text: "매일 밤 우리만의 질문 💫" })
+      .setTimestamp();
 
-cron.schedule('0 22 * * *', () => {
-  const channel = client.channels.cache.get("1473382815897747507");
-  const question = getNextQuestion();
-
-  const guild = channel.guild; // 서버 정보 가져오기
-
-  const embed = new EmbedBuilder()
-    .setColor(0xFF69B4)
-    .setAuthor({
-      name: `${guild.name} 오늘의 질문 🌙`,
-      iconURL: guild.iconURL({ dynamic: true })
-    })
-    .setDescription(`💌 ${question}`)
-    .setFooter({ text: "매일 밤 우리만의 질문 💫" })
-    .setTimestamp();
-
-  channel.send({ embeds: [embed] });
+    channel.send({ embeds: [embed] });
+  });
 });
 
-});
-
-// 💬 명령어로 즉시 질문 보내기
+// 명령어로 즉시 질문
 client.on('messageCreate', (message) => {
   if (message.author.bot) return;
   if (message.content === '!질문') {
@@ -126,15 +122,16 @@ client.on('messageCreate', (message) => {
       })
       .setDescription(`🌙 오늘의 질문\n\n${question}`)
       .setTimestamp();
+
     message.channel.send({ embeds: [embed] });
   }
 });
-
 
 client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
