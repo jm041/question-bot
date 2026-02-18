@@ -92,11 +92,16 @@ cron.schedule('* * * * *', () => {
   const channel = client.channels.cache.get("1473382815897747507");
   const question = getNextQuestion();
 
+  const guild = channel.guild; // 서버 정보 가져오기
+
   const embed = new EmbedBuilder()
-    .setColor(0xFF69B4) // 핑크색
-    .setTitle("🌙 오늘의 질문")
+    .setColor(0x9B59B6)
+    .setAuthor({
+      name: `${guild.name} 오늘의 질문 🌙`,
+      iconURL: guild.iconURL({ dynamic: true })
+    })
     .setDescription(`💌 ${question}`)
-    .setFooter({ text: "매일 밤 우리만의 질문 💫" })
+    .setFooter({ text: "매일 밤 우리만의 질문 :dizzy:" })
     .setTimestamp();
 
   channel.send({ embeds: [embed] });
@@ -108,6 +113,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
