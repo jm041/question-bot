@@ -91,7 +91,7 @@ client.once('ready', () => {
   console.log('봇 실행됨');
 
   // 크론 질문 (매일 22시)
-  cron.schedule('0 22 * * *', () => {
+  cron.schedule('* * * * *', () => {
     const channel = client.channels.cache.get("1473382815897747507");
     if (!channel) return;
     const question = getNextQuestion();
@@ -131,6 +131,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
