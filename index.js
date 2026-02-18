@@ -89,7 +89,7 @@ client.once('ready', () => {
   cron.schedule('* * * * *', () => {
     const channel = client.channels.cache.get("1473382815897747507");
     const question = getNextQuestion();
-    channel.send(`🌙 오늘의 질문\n\n${question}`);
+    channel.send(`# 🌙 오늘의 질문\n\n${question}`);
   });
 });
 
@@ -97,6 +97,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
