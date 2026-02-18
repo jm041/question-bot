@@ -86,17 +86,29 @@ function getNextQuestion() {
 client.once('ready', () => {
   console.log('봇 실행됨');
 
-  cron.schedule('* * * * *', () => {
-    const channel = client.channels.cache.get("1473382815897747507");
-    const question = getNextQuestion();
-    channel.send(`# 🌙 오늘의 질문\n\n${question}`);
-  });
+const { EmbedBuilder } = require('discord.js');
+
+cron.schedule('* * * * *', () => {
+  const channel = client.channels.cache.get("1473382815897747507");
+  const question = getNextQuestion();
+
+  const embed = new EmbedBuilder()
+    .setColor(0xFF69B4) // 핑크색
+    .setTitle("🌙 오늘의 질문")
+    .setDescription(`💌 ${question}`)
+    .setFooter({ text: "매일 밤 우리만의 질문 💫" })
+    .setTimestamp();
+
+  channel.send({ embeds: [embed] });
+});
+
 });
 
 client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
