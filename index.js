@@ -23,7 +23,8 @@ client.once('ready', () => {
   });
 });
 
-client.login("process.env.TOKEN");
+client.login(process.env.TOKEN);
 
 const http = require('http');
+
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
