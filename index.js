@@ -80,6 +80,20 @@ const questions = [
   "오늘 기분 한 단어로 표현하면?",
   "오늘 하루에 점수 준다면 몇 점?",
   "오늘 나랑 함께 한 시간 중 가장 좋았던 순간?",
+  "나랑 메시지나 통화할 때 기다려지는 순간이 있어?",
+  "내가 보내는 메시지에 설레는 느낌이 들 때가 있어?",
+  "내가 장난치거나 농담하면 기분이 묘하게 달라지는 적 있어?",
+  "나와 이야기할 때 웃음이 자연스럽게 나는 순간이 있어?",
+  "내가 보내는 이모티콘이나 사진 때문에 기분이 좋아진 적 있어?",
+  "내가 없는 동안에도 나를 떠올린 적이 있어?",
+  "내가 보내는 메시지가 기다려진 적 있어?",
+  "내가 없는 동안 하루가 심심하게 느껴진 적 있어?",
+  "내가 없을 때 가끔 나를 떠올리는 순간 있어?",
+  "요즘 누구랑 있으면 제일 편해?",
+  "사람 좋아할 때 보통 먼저 표현하는 편이야 아니면 기다리는 편이야?",
+  "요즘 연락 제일 많이 하는 사람 누구야?",
+  
+  
   
 ];
 
@@ -102,7 +116,10 @@ client.once('ready', () => {
   console.log('봇 실행됨');
 
   // 크론 질문 (매일 22시)
-  cron.schedule('0 22 * * *', () => {
+  cron.schedule('0 22 * * *', async () => {
+  // 서울시간
+}, { timezone: 'Asia/Seoul' });
+
     const channel = client.channels.cache.get("1473382815897747507");
     if (!channel) return;
     const question = getNextQuestion();
@@ -143,6 +160,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
