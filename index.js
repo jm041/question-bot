@@ -101,7 +101,7 @@ cron.schedule('* * * * *', () => {
       iconURL: guild.iconURL({ dynamic: true })
     })
     .setDescription(`💌 ${question}`)
-    .setFooter({ text: "매일 밤 우리만의 질문 :dizzy:" })
+    .setFooter({ text: "매일 밤 우리만의 질문 💫" })
     .setTimestamp();
 
   channel.send({ embeds: [embed] });
@@ -113,6 +113,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
