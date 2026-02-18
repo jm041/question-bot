@@ -113,17 +113,14 @@ client.once('ready', () => {
 client.on('messageCreate', (message) => {
   if (message.author.bot) return;
   if (message.content === '!질문') {
-    const question = getNextQuestion();
-    const embed = new EmbedBuilder()
-      .setColor(0x2C2F33)
-      .setAuthor({
-        name: message.guild.name,
-        iconURL: message.guild.iconURL({ dynamic: true })
-      })
-      .setDescription(`🌙 오늘의 질문\n\n${question}`)
-      .setTimestamp();
+  const question = getNextQuestion();
+  const embed = new EmbedBuilder()
+    .setColor(0x2C2F33)
+    .setDescription(`🌙 오늘의 질문\n\n💌 ${question}`)
+    .setFooter({ text: "매일 밤 우리만의 질문 💫" })
+    .setTimestamp();
 
-    message.channel.send({ embeds: [embed] });
+  message.channel.send({ embeds: [embed] });
   }
 });
 
@@ -131,6 +128,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
