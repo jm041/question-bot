@@ -69,6 +69,17 @@ const questions = [
   "내가 위로가 된 적 있어?",
   "나랑 있으면 안정감 들어?",
   "내가 없으면 조금 허전할 것 같아?",
+  "오늘 가장 행복했던 순간 공유해줄래?",
+  "내가 오늘 웃게 만든 순간 있어?",
+  "내가 있으면 하루가 더 즐거워?",
+  "오늘 하루 중 나 생각난 순간 있어?",
+  "나랑 오늘 이야기하면서 좋았던 순간은?",
+  "오늘 서로 솔직하게 얘기해볼래?",
+  "오늘 가장 웃겼던 일 뭐였어?",
+  "오늘 하루 나랑 공유하고 싶은 일 있어?",
+  "오늘 기분 한 단어로 표현하면?",
+  "오늘 하루에 점수 준다면 몇 점?",
+  "오늘 나랑 함께 한 시간 중 가장 좋았던 순간?",
   
 ];
 
@@ -91,7 +102,7 @@ client.once('ready', () => {
   console.log('봇 실행됨');
 
   // 크론 질문 (매일 22시)
-  cron.schedule('* * * * *', () => {
+  cron.schedule('0 22 * * *', () => {
     const channel = client.channels.cache.get("1473382815897747507");
     if (!channel) return;
     const question = getNextQuestion();
@@ -132,6 +143,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
