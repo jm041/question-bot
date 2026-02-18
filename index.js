@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const cron = require('node-cron');
+const http = require('http');
 
 const client = new Client({
   intents: [
@@ -8,6 +9,10 @@ const client = new Client({
     GatewayIntentBits.MessageContent
   ]
 });
+
+// ✅ 설정값 (반드시 채우세요)
+const CHANNEL_ID = "1473382815897747507";           // 질문을 올릴 채널 ID
+const USER_IDS = ["926457972538871880", "926457972538871880"];        // 두 사람의 유저 ID (개발자모드로 복사해서 넣기)
 
 const questions = [
   "오늘 하루 중 제일 기분 좋았던 순간은?",
@@ -93,8 +98,6 @@ const questions = [
   "사람 좋아할 때 보통 먼저 표현하는 편이야 아니면 기다리는 편이야?",
   "요즘 연락 제일 많이 하는 사람 누구야?",
   
-  
-  
 ];
 
 let shuffledQuestions = [];
@@ -112,54 +115,104 @@ function getNextQuestion() {
   return shuffledQuestions[currentIndex++];
 }
 
-client.once('ready', () => {
-  console.log('봇 실행됨');
+// ✅ 오늘 질문 상태 (둘 다 답하기 전까지 답 숨김)
+let activeQuestion = null;
+// activeQuestion = { question: string, answers: { [userId]: string } }
 
-  // 크론 질문 (매일 22시, 서울시간)
-  cron.schedule('0 22 * * *', async () => {
-    const channel = client.channels.cache.get("1473382815897747507");
-    if (!channel) return;
+async function postQuestion() {
+  const channel = client.channels.cache.get(CHANNEL_ID);
+  if (!channel) return;
 
-    const question = getNextQuestion();
-    const embed = new EmbedBuilder()
-      .setColor(0xFF69B4)
-      .setAuthor({
-        name: `${channel.guild.name} 오늘의 질문 🌙`,
-        iconURL: channel.guild.iconURL({ dynamic: true })
-      })
-      .setDescription(`💌 ${question}`)
-      .setFooter({ text: "매일 밤 우리만의 질문 💫" })
-      .setTimestamp();
-
-    channel.send({ embeds: [embed] });
-  }, { timezone: 'Asia/Seoul' });
-});
-
-
-// 명령어로 즉시 질문
-client.on('messageCreate', (message) => {
-  if (message.author.bot) return;
-  if (message.content === '!질문') {
   const question = getNextQuestion();
+  activeQuestion = { question, answers: {} };
+
   const embed = new EmbedBuilder()
     .setColor(0xFF69B4)
     .setAuthor({
-        name: message.guild.name,
-        iconURL: message.guild.iconURL({ dynamic: true })
-      })
-    .setDescription(`🌙 오늘의 질문\n\n💌 ${question}`)
+      name: `${channel.guild.name} 오늘의 질문 🌙`,
+      iconURL: channel.guild.iconURL({ dynamic: true })
+    })
+    .setDescription(`💌 ${question}`)
     .setFooter({ text: "매일 밤 우리만의 질문 💫" })
     .setTimestamp();
 
-  message.channel.send({ embeds: [embed] });
+  await channel.send({ embeds: [embed] });
+}
+
+async function revealAnswers(channel) {
+  const [u1, u2] = USER_IDS;
+  const a1 = activeQuestion.answers[u1];
+  const a2 = activeQuestion.answers[u2];
+
+  const embed = new EmbedBuilder()
+    .setColor(0xFF69B4)
+    .setTitle("🌙 오늘의 질문 - 답변 공개")
+    .setDescription(`💌 ${activeQuestion.question}`)
+    .addFields(
+      { name: `<@${u1}> 답변`, value: a1 },
+      { name: `<@${u2}> 답변`, value: a2 }
+    )
+    .setTimestamp();
+
+  await channel.send({ embeds: [embed] });
+  activeQuestion = null;
+}
+
+client.once('ready', () => {
+  console.log('봇 실행됨');
+
+  // 매일 22시(서울시간) 자동 질문
+  cron.schedule('0 22 * * *', async () => {
+    await postQuestion();
+  }, { timezone: 'Asia/Seoul' });
+});
+
+// 메시지 처리
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
+  // 수동 질문 (!질문)
+  if (message.content === '!질문') {
+    // 지정된 채널에서만 실행
+    if (message.channel.id !== CHANNEL_ID) return;
+    await postQuestion();
+    return;
+  }
+
+  // 답변 수집: 지정된 채널 + 두 사람만 + 오늘 질문이 있을 때만
+  if (!activeQuestion) return;
+  if (message.channel.id !== CHANNEL_ID) return;
+  if (!USER_IDS.includes(message.author.id)) return;
+
+  const content = (message.content || '').trim();
+  if (!content) return;
+
+  // 이미 답한 사람은 처리하지 않음 (메시지는 숨김)
+  if (activeQuestion.answers[message.author.id]) {
+    await message.delete().catch(() => {});
+    return;
+  }
+
+  // 답 저장
+  activeQuestion.answers[message.author.id] = content;
+
+  // 채널에서 답변 숨기기(삭제) -> 둘 다 답하기 전까지 서로 못 봄
+  await message.delete().catch(() => {});
+
+  // 둘 다 답했으면 공개
+  const answeredCount = Object.keys(activeQuestion.answers).length;
+  if (answeredCount === 2) {
+    const channel = client.channels.cache.get(CHANNEL_ID);
+    if (!channel) return;
+    await revealAnswers(channel);
   }
 });
 
 client.login(process.env.TOKEN);
 
-const http = require('http');
-const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => res.end("Bot is running")).listen(PORT);
+// 헬스체크 서버
+http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
