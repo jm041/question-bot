@@ -12,7 +12,7 @@ const client = new Client({
 
 // ✅ 설정값 (반드시 채우세요)
 const CHANNEL_ID = "1473382815897747507";           // 질문을 올릴 채널 ID
-const USER_IDS = ["926457972538871880", "926457972538871880"];        // 두 사람의 유저 ID (개발자모드로 복사해서 넣기)
+const USER_IDS = ["926457972538871880", "560466004858372096"];        // 두 사람의 유저 ID (개발자모드로 복사해서 넣기)
 
 const questions = [
   "오늘 하루 중 제일 기분 좋았던 순간은?",
@@ -215,6 +215,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
