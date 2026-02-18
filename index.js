@@ -88,7 +88,7 @@ client.once('ready', () => {
 
 const { EmbedBuilder } = require('discord.js');
 
-cron.schedule('* * * * *', () => {
+cron.schedule('0 22 * * *', () => {
   const channel = client.channels.cache.get("1473382815897747507");
   const question = getNextQuestion();
 
@@ -113,6 +113,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
