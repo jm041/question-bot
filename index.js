@@ -95,7 +95,7 @@ cron.schedule('* * * * *', () => {
   const guild = channel.guild; // 서버 정보 가져오기
 
   const embed = new EmbedBuilder()
-    .setColor(0x9B59B6)
+    .setColor(0xFF69B4)
     .setAuthor({
       name: `${guild.name} 오늘의 질문 🌙`,
       iconURL: guild.iconURL({ dynamic: true })
@@ -113,6 +113,7 @@ client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
