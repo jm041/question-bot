@@ -109,10 +109,29 @@ cron.schedule('0 00 * * *', () => {
 
 });
 
+// 💬 명령어로 즉시 질문 보내기
+client.on('messageCreate', (message) => {
+  if (message.author.bot) return;
+  if (message.content === '!질문') {
+    const question = getNextQuestion();
+    const embed = new EmbedBuilder()
+      .setColor(0x2C2F33)
+      .setAuthor({
+        name: message.guild.name,
+        iconURL: message.guild.iconURL({ dynamic: true })
+      })
+      .setDescription(`🌙 오늘의 질문\n\n${question}`)
+      .setTimestamp();
+    message.channel.send({ embeds: [embed] });
+  }
+});
+
+
 client.login(process.env.TOKEN);
 
 const http = require('http');
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
