@@ -175,6 +175,9 @@ client.on('messageCreate', async (message) => {
   if (message.content === '!질문') {
     // 지정된 채널에서만 실행
     if (message.channel.id !== CHANNEL_ID) return;
+      // ✅ 이미 질문이 진행 중이면(답변 대기 중이면) 새 질문 금지
+  if (activeQuestion) return;
+    
     await postQuestion();
     return;
   }
@@ -212,6 +215,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
