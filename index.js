@@ -61,22 +61,41 @@ const questions = [
   "나랑 실제로 만나면 어색할까?",
   "나 생각보다 괜찮은 사람 같아?",
   "우리 둘이 잘 맞는 편 같아?",
+  "나랑 연락 끊기면 아쉬울 것 같아?",
+  "내가 위로가 된 적 있어?",
+  "나랑 있으면 안정감 들어?",
+  "내가 없으면 조금 허전할 것 같아?",
+  
 ];
+
+let shuffledQuestions = [];
+let currentIndex = 0;
+
+function shuffleArray(array) {
+  return array.sort(() => Math.random() - 0.5);
+}
+
+function getNextQuestion() {
+  if (currentIndex >= shuffledQuestions.length) {
+    shuffledQuestions = shuffleArray([...questions]);
+    currentIndex = 0;
+  }
+  return shuffledQuestions[currentIndex++];
+}
 
 client.once('ready', () => {
   console.log('봇 실행됨');
 
   cron.schedule('* * * * *', () => {
     const channel = client.channels.cache.get("1473382815897747507");
-    const random = questions[Math.floor(Math.random() * questions.length)];
-    channel.send(`🌙 오늘의 질문\n\n${random}`);
+    const question = getNextQuestion();
+    channel.send(`🌙 오늘의 질문\n\n${question}`);
   });
 });
 
 client.login(process.env.TOKEN);
 
 const http = require('http');
-
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
 
 
