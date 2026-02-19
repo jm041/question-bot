@@ -145,7 +145,7 @@ async function revealAnswers(channel) {
   const a2 = activeQuestion.answers[u2];
 
   const embed = new EmbedBuilder()
-    .setColor(0xFF69B4)
+    .setColor(0x2C2F33)
     .setTitle("🌙 오늘의 질문 - 답변 공개")
     .setDescription(`💌 ${activeQuestion.question}`)
     .addFields(
@@ -215,6 +215,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
