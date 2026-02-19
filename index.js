@@ -180,10 +180,17 @@ async function revealAnswers(channel) {
   const embed = new EmbedBuilder()
     .setColor(0x2C2F33)
     .setTitle("🌙 오늘의 질문 - 답변 공개")
-    .setDescription(`💌 ${activeQuestion.question}`)
-    .addFields(
-      { name: `<@${u1}> 답변`, value: a1 },
-      { name: `<@${u2}> 답변`, value: a2 }
+      .setDescription(
+    [
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+      `💌  **${activeQuestion.question}**`,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ].join("\n")
+  )
+  .addFields(
+    { name: `🌙 <@${u1}>`, value: `> ${a1}` },
+    { name: `✨ <@${u2}>`, value: `> ${a2}` }
+
     )
     .setTimestamp();
 
@@ -248,6 +255,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
