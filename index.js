@@ -156,6 +156,9 @@ function getNextQuestion() {
 let activeQuestion = null;
 // activeQuestion = { question: string, answers: { [userId]: string } }
 
+// ✅ 22시에 올려야 했는데 기존 질문이 진행 중이라 못 올린 경우 "대기" 표시
+let pendingQuestion = false;
+
 async function postQuestion() {
   const channel = client.channels.cache.get(CHANNEL_ID);
   if (!channel) return;
@@ -202,6 +205,12 @@ async function revealAnswers(channel) {
 
   await channel.send({ embeds: [embed] });
   activeQuestion = null;
+
+  // ✅ 22시에 못 올린 질문이 대기 중이었다면, 답변 공개 직후 바로 다음 질문 올리기
+  if (pendingQuestion) {
+    pendingQuestion = false;
+    await postQuestion();
+  }
 }
 
 client.once('ready', () => {
@@ -209,8 +218,13 @@ client.once('ready', () => {
 
   // 매일 22시(서울시간) 자동 질문
   cron.schedule('0 22 * * *', async () => {
-    await postQuestion();
-  }, { timezone: 'Asia/Seoul' });
+  // ✅ 이미 질문이 진행 중이면 오늘 22시 질문은 "대기"로만 저장
+  if (activeQuestion) {
+    pendingQuestion = true;
+    return;
+  }
+  await postQuestion();
+}, { timezone: 'Asia/Seoul' });
 });
 
 // 메시지 처리
@@ -221,6 +235,8 @@ client.on('messageCreate', async (message) => {
   if (message.content === '!질문') {
     // 지정된 채널에서만 실행
     if (message.channel.id !== CHANNEL_ID) return;
+      // ✅ !질문 명령어 메시지 먼저 자동 삭제
+  await message.delete().catch(() => {});
       // ✅ 이미 질문이 진행 중이면(답변 대기 중이면) 새 질문 금지
   if (activeQuestion) return;
     
@@ -261,6 +277,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
