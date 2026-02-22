@@ -110,7 +110,7 @@ const questions = [
 "나랑 포옹하면 몇 초 버틸 수 있어?",
 "나를 안아보고 싶다는 생각 해봤어?",
 "나를 보면 눈 어디부터 볼 것 같아?",
-"하루동안 성별이 바뀌면 뭐하고 싶어?
+"하루동안 성별이 바뀌면 뭐하고 싶어?,
 
   //나랑 대화할 때 어떤 기분 들어?
   //누군가한테 꼭 듣고 싶은 말 있어?
@@ -279,6 +279,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
