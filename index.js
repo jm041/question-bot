@@ -42,13 +42,11 @@ const questions = [
 "나한테 하고 싶었는데 못 한 말 있어?",
 "나 생각보다 괜찮은 사람 같아?",
 "내가 위로가 된 적 있어?",
-"나랑 있으면 안정감 들어?",
 "내가 없으면 조금 허전할 것 같아?",
 "내가 오늘 웃게 만든 순간 있어?",
 "내가 있으면 하루가 더 즐거워?",
 "오늘 하루 중 나 생각난 순간 있어?",
 "오늘 나랑 함께 한 시간 중 가장 좋았던 순간?",
-"내가 장난치거나 농담하면 기분이 묘하게 달라지는 적 있어?",
 "내가 없는 동안에도 나를 떠올린 적이 있어?",
 "내가 없을 때 가끔 나를 떠올리는 순간 있어?",
 "내가 너한테 어떤 존재 같아?",
@@ -69,7 +67,6 @@ const questions = [
 "내가 다른 사람이랑 친하게 지내면 질투나?",
 "나랑 단둘이 놀면 뭐 하고 싶어?",
 "내가 사라지면 조금이라도 아쉬울 것 같아?",
-"나랑 하루 종일 통화 가능해?",
 "나랑 여행 가면 어디 가고 싶어?",
 "나랑 단둘이 여행 가는 거 괜찮아?",
 "나 웃길 때랑 진지할 때 중 뭐가 더 좋아?",
@@ -96,7 +93,6 @@ const questions = [
 "내가 좋아한다고 하면 부담이야?",
 "내가 질투하면 귀여울 것 같아?",
 "내가 고백하면 받아줄 가능성은?",
-"솔직히 나한테 감정 있어 없어요 둘 중 하나만 말해줘",
 "나를 좋아하려다 참는 느낌이야 아니면 애초에 감정이 없어?",
 "내가 고백하면 고민은 할 거야 아니면 바로 거절할 거야?",
   //신체적 상상 · 스킨십 수위형
@@ -136,6 +132,13 @@ const questions = [
   //요즘 제일 많이 생각나는 건 뭐야?
   //오늘 기분 한 단어로 표현하면?
   //오늘 나랑 대화하면서 제일 좋았던 순간은?
+  //나랑 있으면 안정감 들어?
+  //내가 장난치거나 농담하면 기분이 묘하게 달라지는 적 있어?
+  //나랑 하루 종일 통화 가능해?
+  //솔직히 나한테 감정 있어 없어요 둘 중 하나만 말해줘
+  
+  
+  
 
   
 ];
@@ -162,12 +165,85 @@ let activeQuestion = null;
 // ✅ 22시에 올려야 했는데 기존 질문이 진행 중이라 못 올린 경우 "대기" 표시
 let pendingQuestion = false;
 
+/* =========================
+   ✅ 미답변 리마인더(1개만 유지: 새로 올리기 전 이전 메시지 삭제)
+========================= */
+const REMIND_EVERY_MIN = 10; // 몇 분 간격으로 알림
+const REMIND_AFTER_MIN = 10; // 질문 올라간 뒤 몇 분 후부터 알림 시작
+let reminderTimer = null;
+let lastReminderMessageId = null;
+
+async function stopReminder(channel) {
+  if (reminderTimer) {
+    clearInterval(reminderTimer);
+    reminderTimer = null;
+  }
+
+   // ✅ 마지막 리마인더 메시지 삭제
+  if (channel && lastReminderMessageId) {
+    const oldMsg = await channel.messages.fetch(lastReminderMessageId).catch(() => null);
+    if (oldMsg) await oldMsg.delete().catch(() => {});
+  }
+  lastReminderMessageId = null;
+}
+
+function startReminder(channel) {
+  // 타이머만 먼저 정리(메시지 삭제는 새로 올릴 때 처리)
+  if (reminderTimer) {
+    clearInterval(reminderTimer);
+    reminderTimer = null;
+  }
+
+  reminderTimer = setInterval(async () => {
+    if (!activeQuestion) {
+      // 질문이 끝났는데 타이머가 남아있으면 정리
+      await stopReminder(channel);
+      return;
+    }
+
+    const postedAt = activeQuestion.postedAt || Date.now();
+    const elapsedMin = Math.floor((Date.now() - postedAt) / 60000);
+
+    if (elapsedMin < REMIND_AFTER_MIN) return;
+
+    const unanswered = USER_IDS.filter(uid => !activeQuestion.answers[uid]);
+    if (unanswered.length === 0) {
+      await stopReminder(channel);
+      return;
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0xFAA61A)
+      .setTitle("⏰ 답변 대기 중")
+      .setDescription(
+        [
+          `💌 **질문:** ${activeQuestion.question}`,
+          `🕒 **경과:** ${elapsedMin}분`,
+          `📝 **아직 답하지 않은 사람:** ${unanswered.map(u => `<@${u}>`).join(" ")}`
+        ].join("\n")
+      )
+      .setTimestamp();
+
+    // ✅ 새 리마인더 올리기 전에 이전 리마인더 삭제
+    if (lastReminderMessageId) {
+      const oldMsg = await channel.messages.fetch(lastReminderMessageId).catch(() => null);
+      if (oldMsg) await oldMsg.delete().catch(() => {});
+      lastReminderMessageId = null;
+    }
+
+    // ✅ 새 리마인더 전송 + ID 저장
+    const newMsg = await channel.send({ embeds: [embed] });
+    lastReminderMessageId = newMsg.id;
+  }, REMIND_EVERY_MIN * 60 * 1000);
+}
+/* ========================= */
+
 async function postQuestion() {
   const channel = client.channels.cache.get(CHANNEL_ID);
   if (!channel) return;
 
   const question = getNextQuestion();
-  activeQuestion = { question, answers: {} };
+  activeQuestion = { question, answers: {}, postedAt: Date.now() };
 
   const embed = new EmbedBuilder()
     .setColor(0xFF69B4)
@@ -181,10 +257,16 @@ async function postQuestion() {
     .setTimestamp();
 
   await channel.send({ embeds: [embed] });
+
+  // ✅ 질문 올라간 뒤 미답변 공지 시작
+  startReminder(channel);
 }
 
 //답변 공개
 async function revealAnswers(channel) {
+  // ✅  답변 공개 "직전에" 리마인더 정리/삭제
+  await stopReminder(channel);
+  
   const [u1, u2] = USER_IDS;
   const a1 = activeQuestion.answers[u1];
   const a2 = activeQuestion.answers[u2];
@@ -207,6 +289,11 @@ async function revealAnswers(channel) {
     .setTimestamp();
 
   await channel.send({ embeds: [embed] });
+  activeQuestion = null;
+
+  // ✅ 답변 공개되면 미답변 공지 중지
+  stopReminder();
+  
   activeQuestion = null;
 
   // ✅ 22시에 못 올린 질문이 대기 중이었다면, 답변 공개 직후 바로 다음 질문 올리기
@@ -280,6 +367,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
