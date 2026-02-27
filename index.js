@@ -403,6 +403,8 @@ function canUseInstantQuestion(interaction) {
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
+  try {
+
   if (interaction.commandName === '질문') {
     const check = canUseInstantQuestion(interaction);
     if (!check.ok) {
@@ -411,7 +413,7 @@ client.on('interactionCreate', async (interaction) => {
     }
     await postQuestion(); // 랜덤
     await interaction.reply({ content: '즉석 질문(랜덤)을 올렸어요.', ephemeral: true });
-    return;
+    //(임시)return;
   }
 
   if (interaction.commandName === '질문올리기') {
@@ -423,7 +425,14 @@ client.on('interactionCreate', async (interaction) => {
     const text = interaction.options.getString('내용');
     await postQuestion(text); // 직접 입력
     await interaction.reply({ content: '즉석 질문(직접 입력)을 올렸어요.', ephemeral: true });
-    return;
+    //(임시)return;
+  }
+
+} catch (err) {
+    console.error("❌ interaction 에러:", err);
+    if (!interaction.replied) {
+      await interaction.reply({ content: '오류가 발생했어요.', ephemeral: true });
+    }
   }
 });
 
@@ -468,6 +477,7 @@ client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
