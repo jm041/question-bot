@@ -9,6 +9,13 @@ const {
 const cron = require('node-cron');
 const http = require('http');
 
+console.log("✅ index.js 로딩됨", new Date().toISOString());
+console.log("✅ ENV 체크", {
+  hasTOKEN: !!process.env.TOKEN,
+  hasCLIENT_ID: !!process.env.CLIENT_ID,
+  hasGUILD_ID: !!process.env.GUILD_ID
+});
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -503,18 +510,26 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-client.login(process.env.TOKEN)
-  .then(() => console.log("✅ 디스코드 로그인 시도"))
-  .catch((err) => console.error("❌ 디스코드 로그인 실패:", err));
 
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 client.on('error', console.error);
 client.on('shardError', console.error);
 
+(async () => {
+  try {
+    await client.login(process.env.TOKEN);
+    console.log("✅ Discord login() 성공");
+  } catch (e) {
+    console.error("❌ Discord login() 실패", e);
+    process.exit(1);
+  }
+})();
+
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
