@@ -262,7 +262,7 @@ function startReminder(channel) {
    - 자동 질문/즉석 질문/직접 입력 질문 모두 여기로
 ========================= */
 async function postQuestion(customQuestion = null) {
-  const channel = client.channels.cache.get(CHANNEL_ID);
+  const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
   if (!channel) return;
 
   const question = (customQuestion && customQuestion.trim().length > 0)
@@ -402,39 +402,62 @@ function canUseInstantQuestion(interaction) {
   return { ok: true };
 }
 
+let isPosting = false;
+
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== '질문' && interaction.commandName !== '질문올리기') return;
 
   try {
+    // ✅ 3초 타임아웃 방지: 먼저 응답 예약
+    await interaction.deferReply({ ephemeral: true });
+
+    // 채널 제한
+    if (interaction.channelId !== CHANNEL_ID) {
+      await interaction.editReply('이 명령어는 지정된 질문 채널에서만 사용할 수 있어요.');
+      return;
+    }
+
+    // 사용자 제한
+    if (!USER_IDS.includes(interaction.user.id)) {
+      await interaction.editReply('이 명령어는 지정된 사용자만 사용할 수 있어요.');
+      return;
+    }
+
+    // 진행 중 질문 있으면 금지
+    if (activeQuestion) {
+      await interaction.editReply('이미 진행 중인 질문이 있어요. (두 사람이 답해야 새 질문을 올릴 수 있어요)');
+      return;
+    }
+
+    // 중복 방지
+    if (isPosting) {
+      await interaction.editReply('지금 질문을 올리는 중이에요. 잠시만요!');
+      return;
+    }
+
+    isPosting = true;
 
   if (interaction.commandName === '질문') {
-    const check = canUseInstantQuestion(interaction);
-    if (!check.ok) {
-      await interaction.reply({ content: check.msg, ephemeral: true });
+      await postQuestion(); // 랜덤
+      await interaction.editReply('즉석 질문(랜덤)을 올렸어요.');
       return;
     }
-    await postQuestion(); // 랜덤
-    await interaction.reply({ content: '즉석 질문(랜덤)을 올렸어요.', ephemeral: true });
-    //(임시)return;
-  }
 
-  if (interaction.commandName === '질문올리기') {
-    const check = canUseInstantQuestion(interaction);
-    if (!check.ok) {
-      await interaction.reply({ content: check.msg, ephemeral: true });
+    if (interaction.commandName === '질문올리기') {
+      const text = interaction.options.getString('내용', true);
+      await postQuestion(text); // 직접 입력
+      await interaction.editReply('즉석 질문(직접 입력)을 올렸어요.');
       return;
     }
-    const text = interaction.options.getString('내용');
-    await postQuestion(text); // 직접 입력
-    await interaction.reply({ content: '즉석 질문(직접 입력)을 올렸어요.', ephemeral: true });
-    //(임시)return;
-  }
-
-} catch (err) {
+  } catch (err) {
     console.error("❌ interaction 에러:", err);
-    if (!interaction.replied) {
-      await interaction.reply({ content: '오류가 발생했어요.', ephemeral: true });
+    // deferReply 했으면 editReply로
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply(`오류: ${err?.message ?? '알 수 없음'}`).catch(() => {});
     }
+  } finally {
+    isPosting = false;
   }
 });
 
@@ -486,6 +509,7 @@ process.on('uncaughtException', console.error);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
