@@ -262,8 +262,11 @@ function startReminder(channel) {
    - 자동 질문/즉석 질문/직접 입력 질문 모두 여기로
 ========================= */
 async function postQuestion(customQuestion = null) {
-  const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-  if (!channel) return;
+  if (isPosting || activeQuestion) return;   
+  isPosting = true;                        
+  try {
+    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+    if (!channel) return;
 
   const question = (customQuestion && customQuestion.trim().length > 0)
     ? customQuestion.trim()
@@ -284,10 +287,14 @@ async function postQuestion(customQuestion = null) {
 
   await channel.send({ embeds: [embed] });
   startReminder(channel);
+    } finally {
+    isPosting = false;                       // ✅ 추가
+  }
 }
 
 // 답변 공개
 async function revealAnswers(channel) {
+  if (!activeQuestion) return;
   await stopReminder(channel);
 
   const [u1, u2] = USER_IDS;
@@ -402,8 +409,6 @@ function canUseInstantQuestion(interaction) {
   return { ok: true };
 }
 
-//let isPosting = false;(삭제대기)
-
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== '질문' && interaction.commandName !== '질문올리기') return;
@@ -492,23 +497,25 @@ client.on('messageCreate', async (message) => {
   // 둘 다 답했으면 공개
   const answeredCount = Object.keys(activeQuestion.answers).length;
   if (answeredCount === 2) {
-    const channel = client.channels.cache.get(CHANNEL_ID);
+    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
     if (!channel) return;
     await revealAnswers(channel);
   }
 });
 
 client.login(process.env.TOKEN)
-  .then(() => console.log("✅ 디스코드 로그인 요청 성공"))
+  .then(() => console.log("✅ 디스코드 로그인 시도"))
   .catch((err) => console.error("❌ 디스코드 로그인 실패:", err));
 
-client.on('error', console.error);
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
+client.on('error', console.error);
+client.on('shardError', console.error);
 
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
