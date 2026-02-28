@@ -526,17 +526,50 @@ process.on('uncaughtException', console.error);
 client.on('error', console.error);
 client.on('shardError', console.error);
 
-(async () => {
-  try {
-    console.log("🚀 Discord login() 시작");
-    await client.login(process.env.TOKEN);
-    console.log("✅ Discord login() 성공");
-  } catch (e) {
-    console.error("❌ Discord login() 실패", e);
-    process.exit(1);
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function loginWithWatchdog() {
+  const TIMEOUT_MS = 30_000;     // 30초 안에 ready/login 안 되면 재시작
+  const RETRY_DELAY_MS = 5_000;  // 재시도 간격
+
+  while (true) {
+    try {
+      console.log("🚀 Discord login() 시작");
+
+      // login()이 멈추면 TIMEOUT으로 끊어버림
+      await Promise.race([
+        client.login(process.env.TOKEN),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("login timeout (gateway hang)")), TIMEOUT_MS)
+        )
+      ]);
+
+      console.log("✅ Discord login() 성공(또는 로그인 반환)");
+
+      // READY까지도 안 오고 멈출 수 있어서 READY 워치독도 추가
+      await Promise.race([
+        new Promise((resolve) => client.once("ready", resolve)),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("ready timeout (gateway hang)")), TIMEOUT_MS)
+        )
+      ]);
+
+      console.log("🟢 READY 도착:", client.user?.tag);
+      return; // 정상 로그인/READY면 루프 종료
+    } catch (e) {
+      console.error("❌ 로그인/READY 실패:", e?.message ?? e);
+      console.log(`↻ ${RETRY_DELAY_MS/1000}s 후 재시도...`);
+      // discord.js 내부 상태가 꼬일 수 있으니 프로세스 재시작이 가장 확실
+      process.exit(1);
+      // 아래는 혹시 로컬에서 돌릴 때만 의미 있음
+      // await sleep(RETRY_DELAY_MS);
+    }
   }
-})();
+}
+
+loginWithWatchdog();
 
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
