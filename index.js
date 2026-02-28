@@ -473,10 +473,18 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-client.login(process.env.TOKEN);
+client.login(process.env.TOKEN)
+  .then(() => console.log("✅ 디스코드 로그인 요청 성공"))
+  .catch((err) => console.error("❌ 디스코드 로그인 실패:", err));
+
+client.on('error', console.error);
+process.on('unhandledRejection', console.error);
+process.on('uncaughtException', console.error);
+
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
