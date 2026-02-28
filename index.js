@@ -458,7 +458,6 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    isPosting = true;
 
   if (interaction.commandName === '질문') {
       await postQuestion(); // 랜덤
@@ -478,9 +477,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply(`오류: ${err?.message ?? '알 수 없음'}`).catch(() => {});
     }
-  } finally {
-    isPosting = false;
-  }
+  } 
 });
 
 /* =========================
@@ -572,4 +569,5 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
