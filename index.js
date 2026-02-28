@@ -402,7 +402,7 @@ function canUseInstantQuestion(interaction) {
   return { ok: true };
 }
 
-let isPosting = false;
+//let isPosting = false;(삭제대기)
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
@@ -509,6 +509,7 @@ process.on('uncaughtException', console.error);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
