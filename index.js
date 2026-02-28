@@ -379,18 +379,28 @@ async function registerSlashCommands() {
 /* =========================
    ✅ READY
 ========================= */
+let slashRegistered = false;
+let cronStarted = false;
+
 client.once('ready', async () => {
   console.log('봇 실행됨');
-  await registerSlashCommands();
+
+  if (!slashRegistered) {
+    slashRegistered = true;
+    await registerSlashCommands();
+  }
 
   // ✅ 매일 22시(서울시간) 자동 질문
-  cron.schedule('0 22 * * *', async () => {
-    if (activeQuestion) {
-      pendingQuestion = true;
-      return;
-    }
-    await postQuestion();
-  }, { timezone: 'Asia/Seoul' });
+  if (!cronStarted) {
+    cronStarted = true;
+    cron.schedule('0 22 * * *', async () => {
+      if (activeQuestion || isPosting) {
+        pendingQuestion = true;
+        return;
+      }
+      await postQuestion();
+    }, { timezone: 'Asia/Seoul' });
+  }
 });
 
 /* =========================
@@ -530,6 +540,7 @@ client.on('shardError', console.error);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
