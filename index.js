@@ -518,6 +518,7 @@ client.on('shardError', console.error);
 
 (async () => {
   try {
+    console.log("🚀 Discord login() 시작");
     await client.login(process.env.TOKEN);
     console.log("✅ Discord login() 성공");
   } catch (e) {
@@ -529,6 +530,7 @@ client.on('shardError', console.error);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
