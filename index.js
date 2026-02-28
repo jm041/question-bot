@@ -6,8 +6,13 @@ const {
   Routes,
   SlashCommandBuilder
 } = require('discord.js');
+
+const dns = require("dns");    
 const cron = require('node-cron');
 const http = require('http');
+
+console.log("✅ execArgv:", process.execArgv);
+console.log("✅ NODE_OPTIONS:", process.env.NODE_OPTIONS);
 
 console.log("✅ index.js 로딩됨", new Date().toISOString());
 console.log("✅ ENV 체크", {
@@ -15,6 +20,14 @@ console.log("✅ ENV 체크", {
   hasCLIENT_ID: !!process.env.CLIENT_ID,
   hasGUILD_ID: !!process.env.GUILD_ID
 });
+
+// Node 18+ 지원: DNS 결과를 IPv4 우선으로
+try {
+  dns.setDefaultResultOrder("ipv4first");
+  console.log("✅ dns.setDefaultResultOrder(ipv4first) 적용");
+} catch (e) {
+  console.log("⚠️ dns.setDefaultResultOrder 적용 실패:", e?.message);
+}
 
 const client = new Client({
   intents: [
@@ -569,5 +582,6 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
