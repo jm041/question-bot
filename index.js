@@ -187,6 +187,8 @@ let activeQuestion = null;
 // ✅ 22시에 올려야 했는데 기존 질문이 진행 중이라 못 올린 경우 "대기" 표시
 let pendingQuestion = false;
 
+let isPosting = false; // ✅ 질문 올리는 중복 실행 방지 락
+
 /* =========================
    ✅ 미답변 리마인더(1개만 유지: 새로 올리기 전 이전 메시지 삭제)
 ========================= */
@@ -484,6 +486,7 @@ process.on('uncaughtException', console.error);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
