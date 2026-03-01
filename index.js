@@ -437,10 +437,11 @@ function canUseInstantQuestion(interaction) {
   if (!USER_IDS.includes(interaction.user.id)) {
     return { ok: false, msg: '이 명령어는 지정된 사용자만 사용할 수 있어요.' };
   }
-  // 진행 중 질문 있으면 금지
-  if (activeQuestion) {
-    return { ok: false, msg: '이미 진행 중인 질문이 있어요. (두 사람이 답해야 새 질문을 올릴 수 있어요)' };
-  }
+  // 진행 중 질문 있으면 금지 (단, /스킵은 예외)
+if (activeQuestion && interaction.commandName !== '스킵') {
+  await interaction.editReply('이미 진행 중인 질문이 있어요. (두 사람이 답해야 새 질문을 올릴 수 있어요)');
+  return;
+}
   return { ok: true };
 }
 
@@ -512,24 +513,26 @@ if (interaction.commandName === '스킵') {
     return;
   }
 
-  if (!activeQuestion) {
-    await interaction.editReply('지금 진행 중인 질문이 없어요.');
-    return;
-  }
-
   const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
   if (!channel) {
     await interaction.editReply('채널을 찾지 못했어요.');
     return;
   }
+  
+  if (!activeQuestion) {
+    await interaction.editReply('지금 진행 중인 질문이 없어요.');
+    return;
+  }
 
   await stopReminder(channel);
 
+  // ✅ 먼저 질문 종료
   activeQuestion = null;
 
+  // ✅ 다음 질문 게시
   await postQuestion();
 
-  await interaction.editReply('현재 질문을 스킵하고 새 질문을 올렸어요.');
+  await interaction.editReply('스킵 완료! 새 질문을 올렸어요.');
   return;
 }
 
@@ -632,5 +635,6 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
