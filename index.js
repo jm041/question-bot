@@ -40,6 +40,7 @@ const client = new Client({
 // ✅ 설정값 (반드시 채우세요)
 const CHANNEL_ID = "1473382815897747507";           // 질문을 올릴 채널 ID
 const USER_IDS = ["926457972538871880", "560466004858372096"];        // 두 사람의 유저 ID (개발자모드로 복사해서 넣기)
+const SKIP_USER_ID = "926457972538871880"; // ✅ 스킵을 쓸 수 있는 '본인' 유저 ID로 바꾸세요
 
 const questions = [
   //하루 · 감정 · 일상 공유형
@@ -374,6 +375,9 @@ async function registerSlashCommands() {
           .setDescription('올릴 질문을 입력하세요.')
           .setRequired(true)
       ),
+    new SlashCommandBuilder()
+    .setName('스킵')
+    .setDescription('진행 중인 질문을 스킵하고 새 질문을 올립니다. (관리자 전용)'),
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(token);
@@ -441,7 +445,7 @@ function canUseInstantQuestion(interaction) {
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== '질문' && interaction.commandName !== '질문올리기') return;
+  if (!['질문','질문올리기','스킵'].includes(interaction.commandName)) return;
 
   try {
     // ✅ 3초 타임아웃 방지: 먼저 응답 예약
@@ -472,7 +476,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
 
-  if (interaction.commandName === '질문') {
+    if (interaction.commandName === '질문') {
       await postQuestion(); // 랜덤
       await interaction.editReply('즉석 질문(랜덤)을 올렸어요.');
       return;
@@ -484,6 +488,51 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.editReply('즉석 질문(직접 입력)을 올렸어요.');
       return;
     }
+
+    if (interaction.commandName === '질문') {
+  await postQuestion();
+  await interaction.editReply('즉석 질문(랜덤)을 올렸어요.');
+  return;
+}
+
+if (interaction.commandName === '질문올리기') {
+  const text = interaction.options.getString('내용', true);
+  await postQuestion(text);
+  await interaction.editReply('즉석 질문(직접 입력)을 올렸어요.');
+  return;
+}
+
+/* 🔽🔽🔽 여기 바로 아래에 붙이세요 🔽🔽🔽 */
+
+if (interaction.commandName === '스킵') {
+
+  if (interaction.user.id !== SKIP_USER_ID) {
+    await interaction.editReply('이 명령어는 지정된 관리자만 사용할 수 있어요.');
+    return;
+  }
+
+  if (!activeQuestion) {
+    await interaction.editReply('지금 진행 중인 질문이 없어요.');
+    return;
+  }
+
+  const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+  if (!channel) {
+    await interaction.editReply('채널을 찾지 못했어요.');
+    return;
+  }
+
+  await stopReminder(channel);
+
+  activeQuestion = null;
+
+  await postQuestion();
+
+  await interaction.editReply('현재 질문을 스킵하고 새 질문을 올렸어요.');
+  return;
+}
+
+    
   } catch (err) {
     console.error("❌ interaction 에러:", err);
     // deferReply 했으면 editReply로
@@ -582,3 +631,4 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
