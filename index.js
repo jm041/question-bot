@@ -1,33 +1,6 @@
-const {
-  Client,
-  GatewayIntentBits,
-  EmbedBuilder,
-  REST,
-  Routes,
-  SlashCommandBuilder
-} = require('discord.js');
-
-const dns = require("dns");    
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const cron = require('node-cron');
 const http = require('http');
-
-console.log("✅ execArgv:", process.execArgv);
-console.log("✅ NODE_OPTIONS:", process.env.NODE_OPTIONS);
-
-console.log("✅ index.js 로딩됨", new Date().toISOString());
-console.log("✅ ENV 체크", {
-  hasTOKEN: !!process.env.TOKEN,
-  hasCLIENT_ID: !!process.env.CLIENT_ID,
-  hasGUILD_ID: !!process.env.GUILD_ID
-});
-
-// Node 18+ 지원: DNS 결과를 IPv4 우선으로
-try {
-  dns.setDefaultResultOrder("ipv4first");
-  console.log("✅ dns.setDefaultResultOrder(ipv4first) 적용");
-} catch (e) {
-  console.log("⚠️ dns.setDefaultResultOrder 적용 실패:", e?.message);
-}
 
 const client = new Client({
   intents: [
@@ -202,18 +175,16 @@ function getNextQuestion() {
 
 // ✅ 오늘 질문 상태 (둘 다 답하기 전까지 답 숨김)
 let activeQuestion = null;
-// activeQuestion = { question: string, answers: { [userId]: string }, postedAt: number }
+// activeQuestion = { question: string, answers: { [userId]: string } }
 
 // ✅ 22시에 올려야 했는데 기존 질문이 진행 중이라 못 올린 경우 "대기" 표시
 let pendingQuestion = false;
-
-let isPosting = false; // ✅ 질문 올리는 중복 실행 방지 락
 
 /* =========================
    ✅ 미답변 리마인더(1개만 유지: 새로 올리기 전 이전 메시지 삭제)
 ========================= */
 const REMIND_EVERY_MIN = 120; // 몇 분 간격으로 알림
-const REMIND_AFTER_MIN = 60;  // 질문 올라간 뒤 몇 분 후부터 알림 시작
+const REMIND_AFTER_MIN = 60; // 질문 올라간 뒤 몇 분 후부터 알림 시작
 let reminderTimer = null;
 let lastReminderMessageId = null;
 
@@ -223,6 +194,7 @@ async function stopReminder(channel) {
     reminderTimer = null;
   }
 
+   // ✅ 마지막 리마인더 메시지 삭제
   if (channel && lastReminderMessageId) {
     const oldMsg = await channel.messages.fetch(lastReminderMessageId).catch(() => null);
     if (oldMsg) await oldMsg.delete().catch(() => {});
@@ -231,6 +203,7 @@ async function stopReminder(channel) {
 }
 
 function startReminder(channel) {
+  // 타이머만 먼저 정리(메시지 삭제는 새로 올릴 때 처리)
   if (reminderTimer) {
     clearInterval(reminderTimer);
     reminderTimer = null;
@@ -238,6 +211,7 @@ function startReminder(channel) {
 
   reminderTimer = setInterval(async () => {
     if (!activeQuestion) {
+      // 질문이 끝났는데 타이머가 남아있으면 정리
       await stopReminder(channel);
       return;
     }
@@ -265,33 +239,25 @@ function startReminder(channel) {
       )
       .setTimestamp();
 
+    // ✅ 새 리마인더 올리기 전에 이전 리마인더 삭제
     if (lastReminderMessageId) {
       const oldMsg = await channel.messages.fetch(lastReminderMessageId).catch(() => null);
       if (oldMsg) await oldMsg.delete().catch(() => {});
       lastReminderMessageId = null;
     }
 
+    // ✅ 새 리마인더 전송 + ID 저장
     const newMsg = await channel.send({ embeds: [embed] });
     lastReminderMessageId = newMsg.id;
   }, REMIND_EVERY_MIN * 60 * 1000);
 }
 /* ========================= */
 
-/* =========================
-   ✅ 질문 업로드(공통)
-   - 자동 질문/즉석 질문/직접 입력 질문 모두 여기로
-========================= */
-async function postQuestion(customQuestion = null) {
-  if (isPosting || activeQuestion) return;   
-  isPosting = true;                        
-  try {
-    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
-    if (!channel) return;
+async function postQuestion() {
+  const channel = client.channels.cache.get(CHANNEL_ID);
+  if (!channel) return;
 
-  const question = (customQuestion && customQuestion.trim().length > 0)
-    ? customQuestion.trim()
-    : getNextQuestion();
-
+  const question = getNextQuestion();
   activeQuestion = { question, answers: {}, postedAt: Date.now() };
 
   const embed = new EmbedBuilder()
@@ -302,21 +268,20 @@ async function postQuestion(customQuestion = null) {
     })
     .setDescription(`💌 ${question}`)
     .setFooter({ text: "매일 밤 우리만의 질문 💫" })
-    .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
+    .setThumbnail(client.user.displayAvatarURL({ dynamic: true })) // ← 이게 봇 프사
     .setTimestamp();
 
   await channel.send({ embeds: [embed] });
+
+  // ✅ 질문 올라간 뒤 미답변 공지 시작
   startReminder(channel);
-    } finally {
-    isPosting = false;                       // ✅ 추가
-  }
 }
 
-// 답변 공개
+//답변 공개
 async function revealAnswers(channel) {
-  if (!activeQuestion) return;
+  // ✅  답변 공개 "직전에" 리마인더 정리/삭제
   await stopReminder(channel);
-
+  
   const [u1, u2] = USER_IDS;
   const a1 = activeQuestion.answers[u1];
   const a2 = activeQuestion.answers[u2];
@@ -324,184 +289,67 @@ async function revealAnswers(channel) {
   const embed = new EmbedBuilder()
     .setColor(0x2C2F33)
     .setTitle("🌙 오늘의 질문 - 답변 공개")
-    .setDescription(
-      [
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-        `💌  **${activeQuestion.question}**`,
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-      ].join("\n")
-    )
-    .addFields(
-      { name: `🌙 <@${u1}>`, value: `> ${a1}` },
-      { name: `✨ <@${u2}>`, value: `> ${a2}` }
+      .setDescription(
+    [
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+      `💌  **${activeQuestion.question}**`,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ].join("\n")
+  )
+  .addFields(
+    { name: `🌙 <@${u1}>`, value: `> ${a1}` },
+    { name: `✨ <@${u2}>`, value: `> ${a2}` }
+
     )
     .setTimestamp();
 
   await channel.send({ embeds: [embed] });
-
   activeQuestion = null;
 
+  // ✅ 답변 공개되면 미답변 공지 중지
+  stopReminder();
+  
+  activeQuestion = null;
+
+  // ✅ 22시에 못 올린 질문이 대기 중이었다면, 답변 공개 직후 바로 다음 질문 올리기
   if (pendingQuestion) {
     pendingQuestion = false;
     await postQuestion();
   }
 }
 
-/* =========================
-   ✅ 슬래시 명령어 등록
-   - /질문 : 랜덤 즉석 질문
-   - /질문올리기 : 직접 입력 즉석 질문
-========================= */
-async function registerSlashCommands() {
-  const token = process.env.TOKEN;
-  const clientId = process.env.CLIENT_ID;
-  const guildId = process.env.GUILD_ID;
-
-  if (!token || !clientId || !guildId) {
-    console.log("⚠️ 슬래시 명령어 등록 스킵: TOKEN/CLIENT_ID/GUILD_ID 환경변수를 확인하세요.");
-    return;
-  }
-
-  const commands = [
-    new SlashCommandBuilder()
-      .setName('질문')
-      .setDescription('즉석 질문(랜덤)을 지금 바로 올립니다. (두 사람 모두 사용 가능)'),
-    new SlashCommandBuilder()
-      .setName('질문올리기')
-      .setDescription('원하는 질문을 즉시 올립니다. (두 사람 모두 사용 가능)')
-      .addStringOption(opt =>
-        opt.setName('내용')
-          .setDescription('올릴 질문을 입력하세요.')
-          .setRequired(true)
-      ),
-  ].map(cmd => cmd.toJSON());
-
-  const rest = new REST({ version: '10' }).setToken(token);
-
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(clientId, guildId),
-      { body: commands }
-    );
-    console.log('✅ 슬래시 명령어 (/질문, /질문올리기) 등록 완료');
-  } catch (err) {
-    console.error('❌ 슬래시 명령어 등록 실패:', err);
-  }
-}
-
-/* =========================
-   ✅ READY
-========================= */
-let slashRegistered = false;
-let cronStarted = false;
-
-client.once('ready', async () => {
+client.once('ready', () => {
   console.log('봇 실행됨');
 
-  if (!slashRegistered) {
-    slashRegistered = true;
-    await registerSlashCommands();
-  }
-
-  // ✅ 매일 22시(서울시간) 자동 질문
-  if (!cronStarted) {
-    cronStarted = true;
-    cron.schedule('0 22 * * *', async () => {
-      if (activeQuestion || isPosting) {
-        pendingQuestion = true;
-        return;
-      }
-      await postQuestion();
-    }, { timezone: 'Asia/Seoul' });
-  }
-});
-
-/* =========================
-   ✅ 슬래시 명령어 처리
-   - 두 사람만 가능
-   - 지정 채널에서만 가능
-   - 진행 중 질문 있으면 금지
-   - 업로드 조건/포맷 동일
-========================= */
-function canUseInstantQuestion(interaction) {
-  // 채널 제한
-  if (interaction.channelId !== CHANNEL_ID) {
-    return { ok: false, msg: '이 명령어는 지정된 질문 채널에서만 사용할 수 있어요.' };
-  }
-  // 사용자 제한
-  if (!USER_IDS.includes(interaction.user.id)) {
-    return { ok: false, msg: '이 명령어는 지정된 사용자만 사용할 수 있어요.' };
-  }
-  // 진행 중 질문 있으면 금지
+  // 매일 22시(서울시간) 자동 질문
+  cron.schedule('0 22 * * *', async () => {
+  // ✅ 이미 질문이 진행 중이면 오늘 22시 질문은 "대기"로만 저장
   if (activeQuestion) {
-    return { ok: false, msg: '이미 진행 중인 질문이 있어요. (두 사람이 답해야 새 질문을 올릴 수 있어요)' };
+    pendingQuestion = true;
+    return;
   }
-  return { ok: true };
-}
-
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== '질문' && interaction.commandName !== '질문올리기') return;
-
-  try {
-    // ✅ 3초 타임아웃 방지: 먼저 응답 예약
-    await interaction.deferReply({ ephemeral: true });
-
-    // 채널 제한
-    if (interaction.channelId !== CHANNEL_ID) {
-      await interaction.editReply('이 명령어는 지정된 질문 채널에서만 사용할 수 있어요.');
-      return;
-    }
-
-    // 사용자 제한
-    if (!USER_IDS.includes(interaction.user.id)) {
-      await interaction.editReply('이 명령어는 지정된 사용자만 사용할 수 있어요.');
-      return;
-    }
-
-    // 진행 중 질문 있으면 금지
-    if (activeQuestion) {
-      await interaction.editReply('이미 진행 중인 질문이 있어요. (두 사람이 답해야 새 질문을 올릴 수 있어요)');
-      return;
-    }
-
-    // 중복 방지
-    if (isPosting) {
-      await interaction.editReply('지금 질문을 올리는 중이에요. 잠시만요!');
-      return;
-    }
-
-
-  if (interaction.commandName === '질문') {
-      await postQuestion(); // 랜덤
-      await interaction.editReply('즉석 질문(랜덤)을 올렸어요.');
-      return;
-    }
-
-    if (interaction.commandName === '질문올리기') {
-      const text = interaction.options.getString('내용', true);
-      await postQuestion(text); // 직접 입력
-      await interaction.editReply('즉석 질문(직접 입력)을 올렸어요.');
-      return;
-    }
-  } catch (err) {
-    console.error("❌ interaction 에러:", err);
-    // deferReply 했으면 editReply로
-    if (interaction.deferred || interaction.replied) {
-      await interaction.editReply(`오류: ${err?.message ?? '알 수 없음'}`).catch(() => {});
-    }
-  } 
+  await postQuestion();
+}, { timezone: 'Asia/Seoul' });
 });
 
-/* =========================
-   ✅ 답변 수집 (메시지 기반)
-   - 지정된 채널 + 두 사람만 + activeQuestion 있을 때만
-   - 답은 삭제해서 서로 못 봄
-   - 둘 다 답하면 공개
-========================= */
+// 메시지 처리
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
+  // 수동 질문 (!질문)
+  if (message.content === '!질문') {
+    // 지정된 채널에서만 실행
+    if (message.channel.id !== CHANNEL_ID) return;
+      // ✅ !질문 명령어 메시지 먼저 자동 삭제
+  await message.delete().catch(() => {});
+      // ✅ 이미 질문이 진행 중이면(답변 대기 중이면) 새 질문 금지
+  if (activeQuestion) return;
+    
+    await postQuestion();
+    return;
+  }
+
+  // 답변 수집: 지정된 채널 + 두 사람만 + 오늘 질문이 있을 때만
   if (!activeQuestion) return;
   if (message.channel.id !== CHANNEL_ID) return;
   if (!USER_IDS.includes(message.author.id)) return;
@@ -518,70 +366,19 @@ client.on('messageCreate', async (message) => {
   // 답 저장
   activeQuestion.answers[message.author.id] = content;
 
-  // 채널에서 답변 숨기기
+  // 채널에서 답변 숨기기(삭제) -> 둘 다 답하기 전까지 서로 못 봄
   await message.delete().catch(() => {});
 
   // 둘 다 답했으면 공개
   const answeredCount = Object.keys(activeQuestion.answers).length;
   if (answeredCount === 2) {
-    const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+    const channel = client.channels.cache.get(CHANNEL_ID);
     if (!channel) return;
     await revealAnswers(channel);
   }
 });
 
-
-process.on('unhandledRejection', console.error);
-process.on('uncaughtException', console.error);
-client.on('error', console.error);
-client.on('shardError', console.error);
-
-async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-async function loginWithWatchdog() {
-  const TIMEOUT_MS = 30_000;     // 30초 안에 ready/login 안 되면 재시작
-  const RETRY_DELAY_MS = 5_000;  // 재시도 간격
-
-  while (true) {
-    try {
-      console.log("🚀 Discord login() 시작");
-
-      // login()이 멈추면 TIMEOUT으로 끊어버림
-      await Promise.race([
-        client.login(process.env.TOKEN),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("login timeout (gateway hang)")), TIMEOUT_MS)
-        )
-      ]);
-
-      console.log("✅ Discord login() 성공(또는 로그인 반환)");
-
-      // READY까지도 안 오고 멈출 수 있어서 READY 워치독도 추가
-      await Promise.race([
-        new Promise((resolve) => client.once("ready", resolve)),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("ready timeout (gateway hang)")), TIMEOUT_MS)
-        )
-      ]);
-
-      console.log("🟢 READY 도착:", client.user?.tag);
-      return; // 정상 로그인/READY면 루프 종료
-    } catch (e) {
-      console.error("❌ 로그인/READY 실패:", e?.message ?? e);
-      console.log(`↻ ${RETRY_DELAY_MS/1000}s 후 재시도...`);
-      // discord.js 내부 상태가 꼬일 수 있으니 프로세스 재시작이 가장 확실
-      process.exit(1);
-      // 아래는 혹시 로컬에서 돌릴 때만 의미 있음
-      // await sleep(RETRY_DELAY_MS);
-    }
-  }
-}
-
-loginWithWatchdog();
-
+client.login(process.env.TOKEN);
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
-
-
-
