@@ -334,8 +334,8 @@ async function revealAnswers(channel) {
       ].join("\n")
     )
     .addFields(
-      { name: `🌙 <@${u1}>`, value: `> ${a1}` },
-      { name: `✨ <@${u2}>`, value: `> ${a2}` }
+      { name: `🌙 <@${u1}>`, value: `>>> ${a1}` },
+      { name: `✨ <@${u2}>`, value: `>>> ${a2}` }
     )
     .setTimestamp();
 
@@ -459,10 +459,13 @@ client.on('interactionCreate', async (interaction) => {
         return;
       }
 
+      // 🔹 리마인더 중지
       await stopReminder(channel);
+
+      // 🔹 현재 질문 종료
       activeQuestion = null;
-      await postQuestion();
-      await interaction.editReply('스킵 완료! 새 질문을 올렸어요.');
+      
+      await interaction.editReply('현재 질문을 종료했어요.');
       return;
     }
 
@@ -583,6 +586,7 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
