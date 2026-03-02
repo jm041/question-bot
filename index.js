@@ -43,25 +43,19 @@ const SKIP_USER_ID = "926457972538871880"; // ✅ /스킵 가능한 본인 ID
 
 const questions = [
   //하루 · 감정 · 일상 공유형
-"오늘 하루에 점수 준다면 몇 점?",
 "요즘 제일 자주 듣는 노래 뭐야?",
 "스트레스 받을 때 어떻게 풀어?",
-"요즘 빠져있는 거 있어?",
 "최근에 제일 많이 웃은 순간은?",
 "요즘 가장 먹고 싶은 음식은?",
 "지금 기분 한 단어로 표현하면?",
-"요즘 자주 생각나는 장소 있어?",
 "요즘 제일 많이 생각하는 주제는?",
-"요즘 제일 듣고 싶은 한마디는?",
 "오늘 가장 웃겼던 일 뭐였어?",
 "요즘 누구랑 있으면 제일 편해?",
 "요즘 연락 제일 많이 하는 사람 누구야?",
   //나에 대한 생각 · 존재감 확인형
 "오늘 나 생각난 적 있어?",
-"나랑 공통점 하나 찾자면 뭐 같아?",
 "나랑 대화할 때 어떤 기분 들어?",
 "나한테 제일 잘 어울리는 별명은?",
-"솔직히 나 조금이라도 신경 쓰여?",
 "나한테 비밀 하나 말해줄 수 있어?",
 "나한테 하고 싶었는데 못 한 말 있어?",
 "나 생각보다 괜찮은 사람 같아?",
@@ -92,12 +86,10 @@ const questions = [
 "내가 갑자기 고백하면 반응 어때?",
 "나랑 데이트 코스 짜본다면?",
 "내가 다른 사람이랑 더 친해지면 어떤 기분일 것 같?",
-"나랑 실제로 만나면 어색할까?",
 "우리 둘이 잘 맞는 편 같아?",
 "나랑 연락 끊기면 아쉬울 것 같아?",
 "나랑 단둘이 어디 가는 거 상상해 본 적 있어?",
 "나랑 하루 바꿔 살면 해보고 싶은 건?",
-"나랑 해보고 싶은 소소한 버킷리스트 하나만 말해줘",
 "나랑 더 깊은 얘기해보고 싶어?",
 "나랑 사소한 다툼 생기면?",
 "내가 보고 싶다고 하면?",
@@ -111,7 +103,6 @@ const questions = [
 "내가 고백하면 고민은 할 거야 아니면 바로 거절할 거야?",
   //신체적 상상 · 스킨십 수위형
 "나한테 설렌 적 있어?",
-"나랑 둘이 침대에 있으면 아무 일도 안 생길 자신 있어?",
 "내가 갑자기 손 잡으면 뺄 거야?",
 "나를 안아보고 싶다는 생각 해봤어?",
 "나를 보면 눈 어디부터 볼 것 같아?",
@@ -183,6 +174,17 @@ const questions = [
   //나를 실제로 만볼 생각 있어?
   //오늘 하루 중 나 생각난 순간 있어?
   //내가 없는 동안에도 나를 떠올린 적이 있어?
+  //나랑 공통점 하나 찾자면 뭐 같아?
+  //나랑 둘이 침대에 있으면 아무 일도 안 생길 자신 있어?
+  //오늘 하루에 점수 준다면 몇 점?
+  //가 본 여행지 중에 가장 좋았던 곳은?(ㅈㄴ질문)
+  //나랑 실제로 만나면 어색할까?
+  //요즘 자주 생각나는 장소 있어?
+  //나랑 해보고 싶은 소소한 버킷리스트 하나만 말해줘
+  //우리가 만났을떄 내가 섹스 하자고 하면 할생각 있어?(ㅈㅁ질문)
+  //요즘 빠져있는 거 있어?
+  //솔직히 나 조금이라도 신경 쓰여?
+  //요즘 제일 듣고 싶은 한마디는?
 
 ];
 
@@ -253,11 +255,14 @@ function startReminder(channel) {
       return;
     }
 
+    const isDaily = activeQuestion.type === 'DAILY';
+
     const embed = new EmbedBuilder()
       .setColor(0xFAA61A)
       .setTitle("⏰ 답변 대기 중")
       .setDescription(
         [
+          `🏷️ **종류:** ${isDaily ? "오늘의 질문" : "즉석 질문"}`,
           `💌 **질문:** ${activeQuestion.question}`,
           `🕒 **경과:** ${elapsedMin}분`,
           `📝 **아직 답하지 않은 사람:** ${unanswered.map(u => `<@${u}>`).join(" ")}`
@@ -280,36 +285,40 @@ function startReminder(channel) {
 
 /* =========================
    ✅ 질문 업로드(공통)
-   - 자동 질문/즉석 질문/직접 입력 질문 모두 여기로
+   - type: 'DAILY' | 'INSTANT'
+   - /질문 => DAILY (오늘의 질문)
+   - /질문올리기 => INSTANT (즉석 질문)
 ========================= */
-async function postQuestion(customQuestion = null) {
-  if (isPosting || activeQuestion) return;   
-  isPosting = true;  
-  
+async function postQuestion({ customQuestion = null, type = 'DAILY' } = {}) {
+  if (isPosting || activeQuestion) return;
+  isPosting = true;
+
   try {
     const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
     if (!channel) return;
 
-  const question = (customQuestion && customQuestion.trim().length > 0)
-    ? customQuestion.trim()
-    : getNextQuestion();
+    const question = (customQuestion && customQuestion.trim().length > 0)
+      ? customQuestion.trim()
+      : getNextQuestion();
 
-  activeQuestion = { question, answers: {}, postedAt: Date.now() };
+    activeQuestion = { question, type, answers: {}, postedAt: Date.now() };
 
-  const embed = new EmbedBuilder()
-    .setColor(0xFF69B4)
-    .setAuthor({
-      name: `${channel.guild.name} 오늘의 질문 🌙`,
-      iconURL: channel.guild.iconURL({ dynamic: true })
-    })
-    .setDescription(`💌 ${question}`)
-    .setFooter({ text: "매일 밤 우리만의 질문 💫" })
-    .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
-    .setTimestamp();
+    const isDaily = type === 'DAILY';
 
-  await channel.send({ embeds: [embed] });
-  startReminder(channel);
-    } finally {
+    const embed = new EmbedBuilder()
+      .setColor(isDaily ? 0xFF69B4 : 0x00BFFF)
+      .setAuthor({
+        name: `${channel.guild.name} ${isDaily ? '오늘의 질문 🌙' : '즉석 질문 ⚡'}`,
+        iconURL: channel.guild.iconURL({ dynamic: true })
+      })
+      .setDescription(`💌 ${question}`)
+      .setFooter({ text: isDaily ? "매일 밤 우리만의 질문 💫" : "지금 바로 던지는 즉석 질문 ✨" })
+      .setThumbnail(client.user.displayAvatarURL({ dynamic: true }))
+      .setTimestamp();
+
+    await channel.send({ embeds: [embed] });
+    startReminder(channel);
+  } finally {
     isPosting = false;
   }
 }
@@ -323,9 +332,11 @@ async function revealAnswers(channel) {
   const a1 = activeQuestion.answers[u1];
   const a2 = activeQuestion.answers[u2];
 
+  const isDaily = activeQuestion.type === 'DAILY';
+
   const embed = new EmbedBuilder()
     .setColor(0x2C2F33)
-    .setTitle("🌙 오늘의 질문 - 답변 공개")
+    .setTitle(`${isDaily ? '🌙 오늘의 질문' : '⚡ 즉석 질문'} - 답변 공개`)
     .setDescription(
       [
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
@@ -343,9 +354,10 @@ async function revealAnswers(channel) {
 
   activeQuestion = null;
 
+  // ✅ "대기 중이던 오늘의 질문(DAILY)"만 올림
   if (pendingQuestion) {
     pendingQuestion = false;
-    await postQuestion();
+    await postQuestion({ type: 'DAILY' });
   }
 }
 
@@ -410,7 +422,7 @@ client.once('ready', async () => {
     await registerSlashCommands();
   }
 
-  // ✅ 매일 22시(서울시간) 자동 질문
+  // ✅ 매일 22시(서울시간) 자동 질문 = 오늘의 질문(DAILY)
   if (!cronStarted) {
     cronStarted = true;
     cron.schedule('0 22 * * *', async () => {
@@ -418,7 +430,7 @@ client.once('ready', async () => {
         pendingQuestion = true;
         return;
       }
-      await postQuestion();
+      await postQuestion({ type: 'DAILY' });
     }, { timezone: 'Asia/Seoul' });
   }
 });
@@ -487,15 +499,17 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
+    // ✅ /질문 => 오늘의 질문(DAILY, 랜덤)
     if (interaction.commandName === '질문') {
-      await postQuestion();
-      await interaction.editReply('즉석 질문(랜덤)을 올렸어요.');
+      await postQuestion({ type: 'DAILY' });
+      await interaction.editReply('오늘의 질문(랜덤)을 올렸어요.');
       return;
     }
 
+    // ✅ /질문올리기 => 즉석 질문(INSTANT, 직접 입력)
     if (interaction.commandName === '질문올리기') {
       const text = interaction.options.getString('내용', true);
-      await postQuestion(text);
+      await postQuestion({ customQuestion: text, type: 'INSTANT' });
       await interaction.editReply('즉석 질문(직접 입력)을 올렸어요.');
       return;
     }
@@ -586,6 +600,7 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
