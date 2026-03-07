@@ -10,6 +10,8 @@ const {
 const dns = require("dns");    
 const cron = require('node-cron');
 const http = require('http');
+//기분봇 추가하면서 넣은것
+const { createCoupleTracker } = require("./couple-tracker");
 
 console.log("✅ execArgv:", process.execArgv);
 console.log("✅ NODE_OPTIONS:", process.env.NODE_OPTIONS);
@@ -40,6 +42,12 @@ const client = new Client({
 const CHANNEL_ID = "1473382815897747507";           // 질문을 올릴 채널 ID
 const USER_IDS = ["926457972538871880", "560466004858372096"];        // 두 사람의 유저 ID
 const SKIP_USER_ID = "926457972538871880"; // ✅ /스킵 가능한 본인 ID
+
+//질문봇 추
+const coupleTracker = createCoupleTracker({
+  channelId: CHANNEL_ID,
+  userIds: USER_IDS
+});
 
 const questions = [
   //하루 · 감정 · 일상 공유형
@@ -404,7 +412,10 @@ async function registerSlashCommands() {
     new SlashCommandBuilder()
     .setName('스킵')
     .setDescription('진행 중인 질문을 스킵하고 새 질문을 올립니다. (관리자 전용)'),
-  ].map(cmd => cmd.toJSON());
+    .toJSON(),
+    
+  ...coupleTracker.commands
+    ];
 
   const rest = new REST({ version: '10' }).setToken(token);
 
@@ -455,6 +466,10 @@ client.once('ready', async () => {
 ========================= */
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+
+  const trackerHandled = await coupleTracker.handleInteraction(interaction);
+  if (trackerHandled) return;
+
   if (!['질문', '질문올리기', '스킵'].includes(interaction.commandName)) return;
 
   try {
@@ -611,6 +626,7 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
