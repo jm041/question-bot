@@ -3,8 +3,57 @@ const path = require("path");
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 function createCoupleTracker() {
-  const DATA_DIR = path.join(__dirname, "data");
-  const STORE_PATH = path.join(DATA_DIR, "store.json");
+  const path = require("path");
+const fs = require("fs");
+const Database = require("better-sqlite3");
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+
+function createCoupleTracker(config = {}) {
+  const CHANNEL_ID = config.channelId;
+  const USER_IDS = config.userIds || [];
+
+  const BASE_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, "data");
+  const DATA_DIR = path.join(BASE_DIR, "couple-tracker");
+  const DB_PATH = path.join(DATA_DIR, "tracker.db");
+
+  function ensureDb() {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+
+    const db = new Database(DB_PATH);
+    db.pragma("journal_mode = WAL");
+
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS moods (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        mood TEXT NOT NULL,
+        note TEXT DEFAULT '',
+        created_at INTEGER NOT NULL
+      )
+    `).run();
+
+    db.prepare(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_moods_user_date
+      ON moods(user_id, date)
+    `).run();
+
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS compliments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_id TEXT NOT NULL,
+        to_id TEXT NOT NULL,
+        message TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )
+    `).run();
+
+    return db;
+  }
+
+  const db = ensureDb();
 
   function ensureStore() {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
