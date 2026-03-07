@@ -43,6 +43,7 @@ const SKIP_USER_ID = "926457972538871880"; // ✅ /스킵 가능한 본인 ID
 
 const questions = [
   //하루 · 감정 · 일상 공유형
+"오늘 기분 한 단어로 표현하면?",
 "요즘 제일 자주 듣는 노래 뭐야?",
 "스트레스 받을 때 어떻게 풀어?",
 "요즘 가장 먹고 싶은 음식은?",
@@ -611,6 +612,7 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
