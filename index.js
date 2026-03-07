@@ -411,7 +411,7 @@ async function registerSlashCommands() {
     
     new SlashCommandBuilder()
     .setName('스킵')
-    .setDescription('진행 중인 질문을 스킵하고 새 질문을 올립니다. (관리자 전용)'),
+    .setDescription('진행 중인 질문을 스킵하고 새 질문을 올립니다. (관리자 전용)')
     .toJSON(),
     
   ...coupleTracker.commands
@@ -626,6 +626,7 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
