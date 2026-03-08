@@ -68,7 +68,7 @@ function createSecretRevealModule(client, config) {
   }
 
   function formatStoredName(user) {
-    if (!user) return "익명";
+    if (!user) return "알 수 없음";
     return user;
   }
 
@@ -94,8 +94,8 @@ function createSecretRevealModule(client, config) {
     const targetItems = force ? all : todayItems;
     const remainItems = force ? [] : all.filter(item => item.dateKey !== todayKey);
 
-    const lines = targetItems.map((item, idx) => {
-      const author = item.anonymous ? `익명${idx + 1}` : formatStoredName(item.username);
+    const lines = targetItems.map((item) => {
+      const author = formatStoredName(item.username);
       return `**${author}**\n>>> ${item.content}`;
     });
 
@@ -115,7 +115,11 @@ function createSecretRevealModule(client, config) {
     for (let i = 0; i < chunks.length; i++) {
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle(i === 0 ? `🌙 오늘의 마지막 말 (${targetItems.length}개)` : `🌙 오늘의 마지막 말 (계속 ${i + 1}/${chunks.length})`)
+        .setTitle(
+          i === 0
+            ? `🌙 오늘의 속마음 (${targetItems.length}개)`
+            : `🌙 오늘의 속마음 (계속 ${i + 1}/${chunks.length})`
+        )
         .setDescription(chunks[i])
         .setFooter({ text: force ? "관리자 수동 공개" : "23:59 자동 공개" })
         .setTimestamp();
@@ -141,7 +145,7 @@ function createSecretRevealModule(client, config) {
         try {
           await revealSecrets(false);
         } catch (err) {
-          console.error("❌ 23:59 비밀말 공개 실패:", err);
+          console.error("❌ 23:59 속마음 공개 실패:", err);
         }
       },
       { timezone }
@@ -151,34 +155,52 @@ function createSecretRevealModule(client, config) {
   function getCommands() {
     return [
       new SlashCommandBuilder()
-        .setName("마지막말")
-        .setDescription("지금 보내고, 23:59에 한 번에 공개합니다.")
+        .setName("속마음")
+        .setDescription("지금 말하지만 23:59에 공개됩니다.")
         .addStringOption(opt =>
           opt
             .setName("내용")
             .setDescription("지금은 숨기고 밤에 공개할 말")
             .setRequired(true)
-        )
-        .addBooleanOption(opt =>
-          opt
-            .setName("익명")
-            .setDescription("익명으로 공개할지 선택")
-            .setRequired(false)
         ),
 
       new SlashCommandBuilder()
-        .setName("마지막말확인")
-        .setDescription("오늘 쌓인 마지막말 개수를 확인합니다."),
+        .setName("오늘의진심")
+        .setDescription("지금 말하지만 23:59에 공개됩니다.")
+        .addStringOption(opt =>
+          opt
+            .setName("내용")
+            .setDescription("지금은 숨기고 밤에 공개할 말")
+            .setRequired(true)
+        ),
 
       new SlashCommandBuilder()
-        .setName("마지막말공개")
-        .setDescription("관리자가 저장된 마지막말을 즉시 공개합니다."),
+        .setName("오늘의속마음")
+        .setDescription("지금 말하지만 23:59에 공개됩니다.")
+        .addStringOption(opt =>
+          opt
+            .setName("내용")
+            .setDescription("지금은 숨기고 밤에 공개할 말")
+            .setRequired(true)
+        ),
+
+      new SlashCommandBuilder()
+        .setName("속마음확인")
+        .setDescription("오늘 쌓인 속마음 개수를 확인합니다."),
+
+      new SlashCommandBuilder()
+        .setName("속마음공개")
+        .setDescription("관리자가 저장된 속마음을 즉시 공개합니다."),
     ];
   }
 
   async function handleInteraction(interaction) {
     if (!interaction.isChatInputCommand()) return false;
-    if (!["마지막말", "마지막말확인", "마지막말공개"].includes(interaction.commandName)) {
+    if (
+      !["속마음", "오늘의진심", "오늘의속마음", "속마음확인", "속마음공개"].includes(
+        interaction.commandName
+      )
+    ) {
       return false;
     }
 
@@ -189,15 +211,15 @@ function createSecretRevealModule(client, config) {
       return true;
     }
 
-    if (interaction.commandName === "마지막말확인") {
+    if (interaction.commandName === "속마음확인") {
       const list = readMessages();
       const todayKey = getTodayKey();
       const todayCount = list.filter(item => item.dateKey === todayKey).length;
-      await interaction.editReply(`오늘 23:59 공개 예정인 마지막말은 **${todayCount}개**예요.`);
+      await interaction.editReply(`오늘 23:59 공개 예정인 속마음은 **${todayCount}개**예요.`);
       return true;
     }
 
-    if (interaction.commandName === "마지막말공개") {
+    if (interaction.commandName === "속마음공개") {
       if (!adminUserId || interaction.user.id !== adminUserId) {
         await interaction.editReply("이 명령어는 지정된 관리자만 사용할 수 있어요.");
         return true;
@@ -205,21 +227,24 @@ function createSecretRevealModule(client, config) {
 
       const result = await revealSecrets(true);
       if (result.empty) {
-        await interaction.editReply("지금 공개할 마지막말이 없어요.");
+        await interaction.editReply("지금 공개할 속마음이 없어요.");
       } else {
-        await interaction.editReply(`저장된 마지막말 **${result.count}개**를 즉시 공개했어요.`);
+        await interaction.editReply(`저장된 속마음 **${result.count}개**를 즉시 공개했어요.`);
       }
       return true;
     }
 
-    if (interaction.commandName === "마지막말") {
+    if (
+      interaction.commandName === "속마음" ||
+      interaction.commandName === "오늘의진심" ||
+      interaction.commandName === "오늘의속마음"
+    ) {
       if (allowedUserIds.length > 0 && !allowedUserIds.includes(interaction.user.id)) {
         await interaction.editReply("이 명령어는 지정된 사용자만 사용할 수 있어요.");
         return true;
       }
 
       const content = interaction.options.getString("내용", true).trim();
-      const anonymous = interaction.options.getBoolean("익명") ?? true;
 
       if (!content) {
         await interaction.editReply("내용이 비어 있어요.");
@@ -230,15 +255,12 @@ function createSecretRevealModule(client, config) {
         userId: interaction.user.id,
         username: interaction.user.username,
         content,
-        anonymous,
         dateKey: getTodayKey(),
         createdAt: new Date().toISOString(),
       });
 
       await interaction.editReply(
-        anonymous
-          ? "저장했어요. 지금은 숨기고 **23:59에 익명으로** 공개됩니다."
-          : "저장했어요. 지금은 숨기고 **23:59에 이름과 함께** 공개됩니다."
+        "저장했어요. 지금은 숨기고 **23:59에 공개됩니다.**"
       );
       return true;
     }
