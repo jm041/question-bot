@@ -10,6 +10,7 @@ const {
 const dns = require("dns");    
 const cron = require('node-cron');
 const http = require('http');
+const { createSecretRevealModule } = require("./secret-reveal");
 
 console.log("✅ execArgv:", process.execArgv);
 console.log("✅ NODE_OPTIONS:", process.env.NODE_OPTIONS);
@@ -40,6 +41,14 @@ const client = new Client({
 const CHANNEL_ID = "1473382815897747507";           // 질문을 올릴 채널 ID
 const USER_IDS = ["926457972538871880", "560466004858372096"];        // 두 사람의 유저 ID
 const SKIP_USER_ID = "926457972538871880"; // ✅ /스킵 가능한 본인 ID
+
+const secretReveal = createSecretRevealModule(client, {
+  channelId: CHANNEL_ID,
+  timezone: "Asia/Seoul",
+  allowedUserIds: USER_IDS,
+  adminUserId: SKIP_USER_ID,
+  fileName: "secret-messages.json",
+});
 
 const questions = [
   //하루 · 감정 · 일상 공유형
@@ -389,23 +398,24 @@ async function registerSlashCommands() {
   }
 
   const commands = [
-    new SlashCommandBuilder()
-      .setName('질문')
-      .setDescription('즉석 질문(랜덤)을 지금 바로 올립니다. (두 사람 모두 사용 가능)'),
-    
-    new SlashCommandBuilder()
-      .setName('질문올리기')
-      .setDescription('원하는 질문을 즉시 올립니다. (두 사람 모두 사용 가능)')
-      .addStringOption(opt =>
-        opt.setName('내용')
-          .setDescription('올릴 질문을 입력하세요.')
-          .setRequired(true)
-      ),
-    
-    new SlashCommandBuilder()
+  new SlashCommandBuilder()
+    .setName('질문')
+    .setDescription('즉석 질문(랜덤)을 지금 바로 올립니다.\n(두 사람 모두 사용 가능)'),
+
+  new SlashCommandBuilder()
+    .setName('질문올리기')
+    .setDescription('원하는 질문을 즉시 올립니다. (두 사람 모두 사용 가능)')
+    .addStringOption(opt => opt.setName('내용')
+      .setDescription('올릴 질문을 입력하세요.')
+      .setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
     .setName('스킵')
-    .setDescription('진행 중인 질문을 스킵하고 새 질문을 올립니다. (관리자 전용)'),
-  ].map(cmd => cmd.toJSON());
+    .setDescription('진행 중인 질문을 스킵하고 새 질문을 올립니다.\n(관리자 전용)'),
+
+  ...secretReveal.getCommands(),
+].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(token);
 
@@ -434,6 +444,8 @@ client.once('ready', async () => {
     await registerSlashCommands();
   }
 
+  secretReveal.scheduleReveal();
+
   // ✅ 매일 22시(서울시간) 자동 질문 = 오늘의 질문(DAILY)
   if (!cronStarted) {
     cronStarted = true;
@@ -456,10 +468,30 @@ client.once('ready', async () => {
 ========================= */
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+
+  const handledBySecret = await secretReveal.handleInteraction(interaction).catch(async (err) => {
+    console.error("❌ secretReveal interaction 에러:", err);
+
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply(`오류: ${err?.message ?? '알 수 없음'}`).catch(() => {});
+    } else {
+      await interaction.reply({
+        content: `오류: ${err?.message ?? '알 수 없음'}`,
+        ephemeral: true
+      }).catch(() => {});
+    }
+
+    return true;
+  });
+
+  if (handledBySecret) return;
+
   if (!['질문', '질문올리기', '스킵'].includes(interaction.commandName)) return;
 
   try {
     await interaction.deferReply({ ephemeral: true });
+
+    // 기존 질문/질문올리기/스킵 처리
     
   // 채널 제한
   if (interaction.channelId !== CHANNEL_ID) {
@@ -612,6 +644,7 @@ loginWithWatchdog();
 
 // 헬스체크 서버
 http.createServer((req, res) => res.end("Bot is running")).listen(3000);
+
 
 
 
